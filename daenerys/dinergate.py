@@ -21,3 +21,7 @@ class Dinergate(object):
         if not self.URL_TEMPLATE:
             raise NotImplementedError
         return self.URL_TEMPLATE.format(self=self)
+
+    def to_dict(self):
+        return {k: getattr(self, k) for k in dir(self)
+                if not k.startswith('_') and k not in ('text_response',)}

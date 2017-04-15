@@ -1,4 +1,5 @@
 import time
+import cPickle
 
 from kombu import Connection, Exchange, Queue
 
@@ -28,7 +29,8 @@ def sync_get(name, interval=0.5):
     with Connection(BROKER_URI) as conn:
         publish(conn, name)
         while 1:
-            if int(r.get(name) or PENDING) == SUCCESS:
+            rs = r.get(name)
+            if rs and Backend.from_json(cPickle.loads(rs)).status == SUCCESS:
                 break
             time.sleep(interval)
         item = Backend.get(name)

@@ -1,3 +1,5 @@
+import ast
+import cPickle
 from datetime import datetime
 
 import redis
@@ -7,7 +9,6 @@ from config import READY_STATES, PENDING, SUCCESS, FAILURE
 
 connect('zhihulive')
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
-_cache = {}
 
 
 class Backend(Document):
@@ -32,15 +33,16 @@ class Backend(Document):
 
     @classmethod
     def get(cls, name):
-        if name in _cache:
-            return _cache[name]
+        rs = r.get(name)
+        if rs:
+            return cls.from_json(cPickle.loads(rs))
         try:
             item = cls.objects.get(name=name)
         except DoesNotExist:
             pass
         else:
             if item:
-                _cache[name] = item
+                r.set(name, cPickle.dumps(item.to_json()))
                 return item
 
     @classmethod
@@ -48,8 +50,8 @@ class Backend(Document):
         item = cls.objects.get(name=name)
         if item:
             item.update(result=result, status=state, worker_id=worker_id)
-            _cache[name] = item
-            r.set(name, state)
+            item = cls.objects.get(name=name)
+            r.set(name, cPickle.dumps(item.to_json()))
             return True
         return False
 
@@ -58,7 +60,7 @@ class Backend(Document):
         item = cls.objects.get(name=name)
         if item:
             item.update(traceback=traceback, status=state, worker_id=worker_id)
-            _cache[name] = item
-            r.set(name, state)
+            item = cls.objects.get(name=name)
+            r.set(name, cPickle.dumps(item.to_json()))
             return True
         return False
